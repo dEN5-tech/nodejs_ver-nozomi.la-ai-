@@ -8,6 +8,7 @@ const MASTER_URL = "https://n.nozomi.la/index.nozomi";
 const TAG_URL = "https://n.nozomi.la/nozomi/%s.nozomi";
 
 const { FILTER } = require("./parameters");
+const { store, imageWorkerSlice } = require("./state");
 let baseUrl = MASTER_URL;
 if (FILTER) {
   baseUrl = TAG_URL.replace("%s", FILTER);
@@ -56,7 +57,6 @@ function urlJSON(doc_id_) {
 const getJSON = async function (doc_id) {
   if (doc_id) {
     const url = urlJSON(doc_id);
-
     try {
       const response = await axios({
         method: "get",
@@ -75,14 +75,8 @@ const getJSON = async function (doc_id) {
           TE: "Trailers",
         },
       });
-      return response.data || null;
+      return response.data;
     } catch (error) {
-      if (error.response && error.response.status === 404) {
-        console.log(`${doc_id} returned status 404`);
-        return null;
-      }
-      console.log(error.message);
-      console.log("JSON not formatted.");
       return null;
     }
   } else return null;
@@ -119,28 +113,36 @@ async function getImage(url) {
 class ImageWorker {
   constructor(url) {
     this.url = url;
-    this.mutex = new Mutex();
     this.result = null;
+    this.todo = null;
   }
 
-  async run() {
+  run() {
     if (DEBUG) {
-      console.log("ImageWorker starts...");
+      console.log('ImageWorker starts...');
     }
-    const content = await getImage(this.url);
-    await this.mutex.acquire();
-    this.result = content;
-    g.printJobs();
-    this.todo();
-    if (DEBUG) {
-      console.log("ImageWorker ends.");
-    }
-    this.mutex.release();
+
+    // Simulating async getImage function
+    getImage(this.url).then(content => {
+      store.dispatch(imageWorkerSlice.actions.setResult(content));
+      store.dispatch(imageWorkerSlice.actions.setRunning(true));
+      g.printJobs();
+      if (typeof this.todo === 'function') {
+        this.todo();
+      }
+      if (DEBUG) {
+        console.log('ImageWorker ends.');
+      }
+      store.dispatch(imageWorkerSlice.actions.setRunning(false));
+    });
+
+    store.dispatch(imageWorkerSlice.actions.setImageUrl(this.url));
   }
 
-  check() {
-    return this.result;
+  setTodo(callback) {
+    this.todo = callback;
   }
 }
+
 
 module.exports = { askMaster, getJSON, ImageWorker };

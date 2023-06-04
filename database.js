@@ -1,16 +1,30 @@
 const fs = require('fs');
 const { getImage } = require('./nozo');
 const { TagInfo } = require('./tag');
-const { ALL_RESPONSES, DEBUG } = require('./ai');
-const { Mutex } = require('async-mutex');
+const {  DEBUG } = require('./ai');
+
+
+const RES_NEGATIVE = "RES_NEGATIVE";
+const RES_FINE = "RES_FINE";
+const RES_BETTER = "RES_BETTER";
+const RES_MORE = "RES_MORE";
+const RES_WOW = "RES_WOW";
+const RES_SAVE = "RES_SAVE";
+
+const ALL_RESPONSES = [
+  RES_NEGATIVE,
+  RES_FINE,
+  RES_BETTER,
+  RES_MORE,
+  RES_WOW,
+  RES_SAVE,
+];
+
 
 const DOCS = 'docs';
 const IMGS = 'imgs';
 const TAGS = 'tags';
 const OVERALL = 'overall.pickle';
-
-const fileLock = new Mutex();
-const accLock = new Mutex();
 
 const listAll = (x) => {
   return fs.readdirSync(x);
@@ -36,22 +50,18 @@ const loadDoc = (doc_id) => {
 };
 
 const legalizeTagName = (name) => {
-  let result = '';
-  for (let i = 0; i < name.length; i++) {
-    const char = name[i];
-    if (char.match(/[a-zA-Z0-9_]/)) {
-      result += char;
-    } else {
-      result += String.fromCharCode(char.charCodeAt(0));
-    }
-  }
-  return result;
+  return name.replace(/[\;\:\/\?\@\&\=\#\%\+\,\$\{\}\|\\\<\>\[\]\^\~\`\*\"]/g, (c) => {
+    return '%' + c.charCodeAt(0).toString(16);
+  });
 };
 
 const loadTagInfo = (name) => {
   const filePath = `${TAGS}/${legalizeTagName(name)}`;
   const data = fs.readFileSync(filePath);
-  return JSON.parse(data);
+  const data_ = JSON.parse(data);
+  const tagInfo = new TagInfo();
+  tagInfo.parseTag(data_);
+  return tagInfo
 };
 
 const saveTagInfo = (tagInfo) => {
@@ -60,7 +70,6 @@ const saveTagInfo = (tagInfo) => {
 };
 
 const accTagInfo = async (tag, response) => {
-  await accLock.acquire();
   try {
     const tagInfo = loadTagInfo(tag.name);
     tagInfo.n_responses[response] = tagInfo.n_responses[response] + 1 || 1;
@@ -74,8 +83,6 @@ const accTagInfo = async (tag, response) => {
     } else {
       throw error;
     }
-  } finally {
-    accLock.release();
   }
 };
 

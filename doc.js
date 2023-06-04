@@ -21,8 +21,9 @@ function full_path_from_hash(hash) {
       this.tags = [];
       this.img_urls = [];
       this.local_filenames = [];
+      
       if (json !== null) {
-        this.parse(json);
+        this.parse(json)
       }
     }
   
@@ -73,6 +74,7 @@ function full_path_from_hash(hash) {
       return `<doc ${this.id} ${this.response} ${this.local_filenames.length > 0 ? 'saved' : ''}>`;
     }
   }
+
 
 
 

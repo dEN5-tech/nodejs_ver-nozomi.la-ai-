@@ -1,3 +1,21 @@
+
+const RES_NEGATIVE = "RES_NEGATIVE";
+const RES_FINE = "RES_FINE";
+const RES_BETTER = "RES_BETTER";
+const RES_MORE = "RES_MORE";
+const RES_WOW = "RES_WOW";
+const RES_SAVE = "RES_SAVE";
+
+const ALL_RESPONSES = [
+  RES_NEGATIVE,
+  RES_FINE,
+  RES_BETTER,
+  RES_MORE,
+  RES_WOW,
+  RES_SAVE,
+];
+
+
 class TagInfo {
     constructor() {
       this.name = '';
@@ -25,3 +43,6 @@ class TagInfo {
   }
 
   
+
+
+module.exports.TagInfo = TagInfo

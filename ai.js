@@ -16,6 +16,7 @@ const {
   VIEW_RATIO,
   ATTITUDE_TOWARDS_NOVEL_TAGS,
 } = require("./parameters");
+const { Job, g } = require("./server");
 
 const RES_NEGATIVE = "RES_NEGATIVE";
 const RES_FINE = "RES_FINE";
@@ -124,14 +125,14 @@ const predict = (doc) => {
   return result;
 };
 
-const sample = (population) => {
+const sample = async (population) => {
   if (random() < EXPLORE_PROB) {
     // Explore
     const doc_id = population[Math.floor(Math.random() * population.length)];
     return [doc_id, EXPLORE];
   } else {
     // Exploit
-    const jsons = population.map((x) => getJSON(x));
+    const jsons = await Promise.all(population.map((x) => getJSON(x)));
     const docs = [];
     for (const j of jsons) {
       try {
@@ -187,31 +188,30 @@ const roll = async () => {
           continue;
         }
         has_stuff = true;
-        const [doc_id, mode] = sample(population);
+        const [doc_id, mode] = await sample(population);
         population.splice(population.indexOf(doc_id), 1);
         let doc;
         try {
-          doc = new Doc(getJSON(doc_id));
+          doc = new Doc(await getJSON(doc_id));
         } catch (error) {
+          console.log(error,doc_id)
           continue;
         }
         if (isBlacklisted(doc)) {
+          console.log("continue isBlacklisted")
           continue;
         }
         if (DEBUG) {
           console.log("Waiting for proSem...");
         }
-        g.proSem.acquire();
         if (DEBUG) {
           console.log("proSem acquired");
         }
+        console.log("job")
         const job = new Job(doc, new ImageWorker(doc.img_urls[0]), mode);
-        job.imageWorker.todo = g.conSem.release;
-        g.jobsLock.acquire();
         g.jobs.push(job);
         g.printJobs();
-        g.jobsLock.release();
-        job.imageWorker.start();
+        job.imageWorker.run();
       }
     }
     if (has_stuff) {
@@ -261,4 +261,5 @@ module.exports = {
   roll,
   setBlackList,
   isBlacklisted,
+  ALL_RESPONSES
 };
